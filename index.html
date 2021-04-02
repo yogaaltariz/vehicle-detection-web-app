@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Document</title>
+  </head>
+  <body>
+    <p id="result-car"></p>
+    <p id="result-motor"></p>
+
+
+    <video id="video-el" width="320" height="240" autoplay="1" muted="1">
+      <source src="./assets/videos/traffic.mp4" type="video/mp4" />
+      Your browser does not support the video tag.
+    </video>
+
+    <script src="./dist/bundle.js"></script>
+
+    <script>
+      var model = undefined;
+      //   document
+      //     .querySelector("#run-detection")
+      //     .addEventListener("click", async () => {
+      //       const image = document.getElementById("cars-img");
+      //       model = await modelPromise;
+      //       console.log("model loaded");
+
+      //       const results = await model.detect(image);
+      //       console.log(results);
+      //       let totalCars = 0;
+      //       results.forEach((result) => {
+      //         if (result.class === "car" || result.class === "motorcycle") {
+      //           totalCars++;
+      //         }
+      //       });
+
+      //       document.getElementById(
+      //         "result"
+      //       ).innerText = `total kendaraan = ${totalCars}`;
+      //     });
+
+      const initModel = async () => {
+        canvas.width = 224;
+        canvas.height = 224;
+
+        model = await modelPromise;
+        console.log("model loaded");
+      };
+
+      var video = document.getElementById("video-el");
+      var canvas = document.createElement("canvas");
+      var ctx = canvas.getContext("2d");
+      var totalMobil = 0;
+      var totalMotor = 0;
+
+      video.addEventListener("loadedmetadata", initModel, false);
+      //   video.addEventListener('loadeddata', predictWebcam);
+      video.addEventListener("timeupdate", function () {
+        ctx.drawImage(this, 0, 0);
+
+        canvas.toBlob(function (blob) {
+          const imgTag = document.createElement("img");
+          imgTag.src = URL.createObjectURL(blob);
+
+          imgTag.onload = async () => {
+            if (model) {
+              const results = await model.detect(imgTag);
+            //   console.log(results);
+                results.forEach(result => {
+                    if(result.class === 'car') {
+                        totalMobil++
+                        document.getElementById('result-car').innerText = `total mobil terdeteksi = ${totalMobil}`
+                    } else if (result.class === 'motorcycle') {
+                        totalMotor++
+                        document.getElementById('result-motor').innerText = `total motor terdeteksi = ${totalMotor}`
+
+                    }
+                    console.log(result.class)
+                })
+            }
+            URL.revokeObjectURL(this.src);
+          };
+        }, "image/jpeg");
+      });
+    </script>
+  </body>
+</html>
