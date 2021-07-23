@@ -8,63 +8,91 @@
     <title>Document</title>
   </head>
   <body>
-    <p id="result-car"></p>
-    <p id="result-motor"></p>
+    <p id="total-vehicle"></p>
+    <div>
+      <canvas id="c1" width="1000" height="1000"></canvas>
+    </div>
 
-    <video id="video-el" width="320" height="240" autoplay="1" muted="1">
+    <video id="video-el" autoplay="1" muted="1">
       <source src="./assets/videos/traffic.mp4" type="video/mp4" />
       Your browser does not support the video tag.
     </video>
 
     <script>
-      var model = undefined;
-      var video = document.getElementById("video-el");
-      var totalMobil = 0;
-      var totalMotor = 0;
-
-      const initModel = async () => {
-        canvas.width = 224;
-        canvas.height = 224;
-
-        model = await modelPromise;
+      // function to initalize model
+      const initModel = async (processor) => {
+        processor.model = await modelPromise;
         console.log("model loaded");
       };
 
-      var canvas = document.createElement("canvas");
-      var ctx = canvas.getContext("2d");
+      const processor = {
+        totalDetections: 0
+      };
 
-      video.addEventListener("loadeddata", initModel);
+      processor.timerCallback = function () {
+        if (this.video.paused || this.video.ended) {
+          return;
+        }
+        this.computeFrame();
+        let self = this;
+        setTimeout(function () {
+          self.timerCallback();
+        }, 0);
+      };
 
-      video.addEventListener("timeupdate", function () {
-        ctx.drawImage(this, 0, 0);
+      processor.doLoad = function () {
+        const video = document.getElementById("video-el");
+        this.video = video;
 
-        canvas.toBlob(function (blob) {
-          const imgTag = document.createElement("img");
-          imgTag.src = URL.createObjectURL(blob);
+        this.c1 = document.getElementById("c1");
+        this.ctx1 = this.c1.getContext("2d");
 
-          imgTag.onload = async () => {
-            if (model) {
-              const results = await model.detect(imgTag);
-              //   console.log(results);
-              results.forEach((result) => {
-                if (result.class === "car") {
-                  totalMobil++;
-                  document.getElementById(
-                    "result-car"
-                  ).innerText = `total mobil terdeteksi = ${totalMobil}`;
-                } else if (result.class === "motorcycle") {
-                  totalMotor++;
-                  document.getElementById(
-                    "result-motor"
-                  ).innerText = `total motor terdeteksi = ${totalMotor}`;
-                }
-                console.log(result.class);
-              });
-            }
-            URL.revokeObjectURL(this.src);
+        video.addEventListener(
+          "play",
+          () => {
+            initModel(this);
+            this.width = video.videoWidth;
+            this.height = video.videoHeight;
+            this.timerCallback();
+          },
+          false
+        );
+      };
+
+      processor.computeFrame = function computeFrame() {
+        this.ctx1.drawImage(this.video, 0, 0, this.width, this.height);
+        const frame = this.ctx1.getImageData(0, 0, this.width, this.height);
+        const length = frame.data.length;
+        const image = new Image();
+        image.src = this.c1.toDataURL();
+
+        if (this.model) {
+          image.onload = async () => {
+            processor.totalDetections  = 0
+            this.ctx1.clearRect(0, 0, this.width, this.height);
+
+            const results = await this.model.detect(image);
+
+            results.forEach((result) => {
+              this.ctx1.beginPath();
+              this.ctx1.rect(...result.bbox);
+              this.ctx1.stroke();
+              this.ctx1.closePath();
+              processor.totalDetections++
+            });
+
+            document.getElementById('total-vehicle').innerText = `total kendaraan: ${processor.totalDetections}`
           };
-        }, "image/jpeg");
+          // console.log('model loaded, use it')
+        }
+
+      };
+
+      document.addEventListener("DOMContentLoaded", () => {
+        processor.doLoad();
       });
+
+   
     </script>
   </body>
 </html>
